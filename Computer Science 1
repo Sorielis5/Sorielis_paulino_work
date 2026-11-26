@@ -1,1 +1,240 @@
 
+/*Homework 10: Implementing and using dictionaries
+
+Sorielis Paulino Polanco 
+*/
+
+
+#include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include "dict.h"
+
+#define TBL_SIZE 100
+#define P 1000000009
+
+/*
+Represenation function for Node:
+The node representas a singly-linked with key type char and value type int.
+Char* key = key points to a char type value
+int value = represents that int type value that is in pair with the key
+struct node* next = this represents a pointer that points to the next node
+
+Invariant:
+- Key != NULL
+- value is an int value 
+- next points next node can be null also
+*/
+
+struct node {
+    char* key;
+    int value;
+    struct node* next;
+};
+
+/* hash(s) = the hash code of the string s.
+ *
+ * Pre-condition:  c is a null-terminated string.
+ *
+ * This algorithm is adapted from Sedgewick, R., _Algorithms in Java_, 3rd ed.,
+ * Addison-Wesley, 2003, p. 604.
+ *
+ * Modified to prevent overflow as per
+ *   https://cp-algorithms.com/string/string-hashing.html
+ */
+unsigned int hash(char s[]) {
+    unsigned int h = 0, a = 127 ;
+
+    for (int i=0; s[i] != '\0'; i+=1) {
+        h += (a*h + (unsigned int)(s[i])) % P ;
+    }
+    return h % TBL_SIZE ;
+}
+
+
+/*
+ * Representation function: 
+ *A dictionary is represented as a hash table with a fixed size of TBL_SIZE, 
+ stored as an array through tbl[0] though tbl[TBL_SIZE -1].
+ tbl[TBL_SIZE] = this representas an array of linked lists.
+ While the unsigned int size tracks the total number of key values stored in the 
+ dictionary.
+
+ * Invariants:
+ * - The unsigned int size shows the total number of key-values are stored across the elemets.
+ * - each node key != NULL
+ * - No two node in dict can have the same key
+ */
+
+struct dict {
+    struct node* tbl[TBL_SIZE];
+    unsigned int size;
+};
+
+/* dict_create() = ∅
+ */
+struct dict* dict_create() {
+    struct dict* s = malloc(sizeof(struct dict));
+    for (int i = 0; i < TBL_SIZE; i++) {
+        s->tbl[i] = NULL;
+    }
+    s->size = 0;
+    return s;
+}
+
+/* dict_size(s) = the number of key-value pairs in d.
+ */
+unsigned int dict_size(struct dict* s) {
+    return s->size;
+}
+
+/* dict_contains(d, s) = true,  s a key in d
+ *                       false, o/w.
+ */
+bool dict_contains(struct dict* d, char* s) {
+    int i = hash(s) % TBL_SIZE; 
+    struct node* p = d->tbl[i]; // look p at the first item
+    while (p != NULL) {
+        if (strcmp(p->key, s) == 0) {   // if the item matches return tru  
+            return true; 
+        }
+        p = p->next; // next item
+    }
+    return false; 
+}
+/* dict_add(d, s, n):
+ * Pre-condition:  d' = d
+ * Post-condition: d = d' ∪ {(s, n)}.
+ *
+ * I.e., add (s, n) to d.  If there is a key value pair in d with key s, 
+ * replace it.
+ */
+void dict_add(struct dict* d, char* s, int n) {
+    
+    int i = hash(s) % TBL_SIZE ;
+
+    
+    struct node* p = d->tbl[i] ;// first item
+    while (p != NULL) { 
+        if (strcmp(p->key , s)== 0) {
+            p->value =n; 
+            return;
+        }
+        p = p->next ;
+    }
+
+   
+    struct node* newnode = malloc(sizeof(struct node)) ;
+    newnode->key = malloc(strlen(s) + 1); 
+    strcpy(newnode->key, s);//put into the newnode
+    newnode->value =n;
+    newnode->next = d->tbl[i];
+    d->tbl[i] = newnode ;
+    d->size += 1 ;
+
+    return ;
+}
+
+/* dict_get(d, s) = v, where (s, v) is a key-value pair in d.
+ *
+ * Pre-condition:  dict_contains(d, s) = true.
+ */
+int dict_get(struct dict* d, char* s) {
+    int i = hash(s) % TBL_SIZE;  
+
+    struct node* p = d->tbl[i];
+
+    while (p != NULL) {
+        if (strcmp(p->key, s) == 0) { 
+            return p->value;
+        }
+        p = p->next;
+    }
+   return 0;
+}
+
+/* dict_delete(d, s):
+ * Pre-condition:  d' = d
+ * Post-condition: d = d' - {(s, n)}, if (s, n) is in d'
+ *                     d',            otherwise.
+ *
+ * I.e., remove the key-value pair with key s from d.  Notice that if s is not
+ * a key in d, calling dict_delete(d, s) has no effect.
+ */
+void dict_delete(struct dict* d, char* s) {
+    int i = hash(s) % TBL_SIZE;
+    struct node* prev = NULL;
+
+    struct node* curr = d->tbl[i];
+
+    while(curr != NULL){
+        if(strcmp( s, curr->key) == 0){
+            if(curr == d->tbl[i]){ 
+                d->tbl[i] = curr->next;
+            }
+            else{ // last node
+                prev ->next = curr->next;
+            }
+            free(curr->key);
+            free(curr);
+            d->size -=1;
+        }
+        prev = curr;
+        curr = curr -> next;
+    }
+   return;
+}
+/* to_array(d, ks):  fill ks with the keys of d.
+ * Pre-condition:  ks has size at least dict_size(d).
+ * Post-condition: the set of keys of d = {ks[i] : 0 <= i < dict_size(d)}.
+ *
+ * Note:  for 0 <= i < dict_size(d), ks[i] will have been dynamically
+ * allocated.  It is up to the caller to free this space.
+ */
+void dict_keys_to_array(struct dict* d, char* ks[]) {
+    int j = 0;// 
+    for (int i = 0; i < TBL_SIZE; i++) {
+        struct node* p = d->tbl[i];
+        while (p != NULL) {
+            ks[j] = malloc(strlen(p->key) + 1); // makes space in ks for the curr letter
+            strcpy(ks[j], p->key);// copies 
+            j += 1;
+            p = p->next;
+        }
+    }
+    return; 
+}
+
+/* dict_free(d):  free all resources associated to d.
+ */
+void dict_free(struct dict* s) {
+    for (int i = 0; i < TBL_SIZE; i++) {
+        struct node* p = s->tbl[i];
+        while (p != NULL) {
+            struct node* q = p->next;
+            free(p->key); // free key            
+            free(p);
+            p = q;
+        }
+    }
+    free(s);
+}
+/* dict_print(d):  print information about s.
+ *
+ * There are no constraints on this function.  I suggest you implement it in a
+ * way that prints out the values of everything used to represent your dict.
+ */
+void dict_print(struct dict* s) {
+    for (int i = 0; i < TBL_SIZE; i++) {
+        printf("tbl[%d]: ", i);
+        struct node* p = s->tbl[i];
+        while (p != NULL) {
+            printf("%s, ", p->key);
+            p = p->next;
+        }
+        printf("\n");
+    }
+    printf("size = %u\n", s->size);
+    return;
+}
